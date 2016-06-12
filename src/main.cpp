@@ -11,7 +11,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <tiobj.hpp>
 #include <unistd.h>
-
+#include <tiobj-cv.hpp>
 
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
@@ -45,57 +45,80 @@ int main(){
 		0.0, 0.0, 1.0; 
 
 
-
-	PointCloudT::Ptr cloud( new PointCloudT(  0,0,PointT(0,0,0)  ) );
-
-
-	FILE* fd;
-	Mat depth;
-	depth.create(Size(640,480), CV_16S);
-	fd = fopen("depth","r");
-	fread(depth.data, 2, 640*480, fd);
-	fclose(fd);
-
-	Mat image;
-	image.create(Size(640,480), CV_8UC3);
-	fd = fopen("image","r");
-	fread(image.data, 3, 640*480, fd);
-	fclose(fd);
-
-	PointT p;
-	for (int iy=0;iy<image.rows;iy++){
-		for (int ix=0;ix<image.cols;ix++){
-			int z = depth.at<short>(iy,ix);
-			if ( z < 2047 ){
-				Vec3b& a = image.at<Vec3b>(iy,ix);
-				p = PointT(a[0],a[1],a[2]);
-				p.x = (ix - cx) * z / fx;
-				p.y = (iy - cy) * z / fy;
-				p.z = z;
-				cloud->push_back(p);
-			}
-		}
-	}
-
-	/*PointT p(20,30,40);
-	cloud->push_back(p);
-	cout << p << endl;*/
-
-	pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
-	viewer.addPointCloud<PointT> (cloud, rgb, "input_cloud");
-	viewer.setCameraPosition(0,0,-2,0,-1,0,0);
-	viewer.spin();
-
-
-	/*pcl::people::PersonClassifier<pcl::RGB> person_classifier;
-	person_classifier.loadSVMFromFile("../etc/trainedLinearSVMForPeopleDetectionWithHOG.yaml");
-
-
-
+	pcl::people::PersonClassifier<pcl::RGB> person_classifier;
+	person_classifier.loadSVMFromFile("const/trainedLinearSVMForPeopleDetectionWithHOG.yaml");
 	pcl::people::GroundBasedPeopleDetectionApp<PointT> people_detector;    // people detection object
 	people_detector.setVoxelSize(voxel_size);                        // set the voxel size
 	people_detector.setIntrinsics(rgb_intrinsics_matrix);            // set RGB camera intrinsic parameters
-	people_detector.setClassifier(person_classifier);                // set person classifier
+	people_detector.setClassifier(person_classifier);
+
+
+	PointCloudT::Ptr cloud( new PointCloudT(  0,0,PointT(0,0,0)  ) );
+	pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
+	viewer.addPointCloud<PointT> (cloud, rgb, "cloud");
+	viewer.setCameraPosition(0,0,-2,0,-1,0,0);
+
+
+	Eigen::VectorXf ground_coeffs;
+	ground_coeffs.resize(4);
+
+	int i=0;
+	string buffer;
+	while ( cin.good() ){
+		cin >> buffer;
+		if ( (++i%10) != 0 )
+			continue;
+
+
+		TiObj _depth(true, "depth");
+		TiObj _image(true, "image");
+
+		Mat image, depth;
+		depth << _depth;
+		image << _image;
+
+		cloud->clear();
+
+		PointT p;
+		for (int iy=0;iy<image.rows;iy++){
+			for (int ix=0;ix<image.cols;ix++){
+				int z = depth.at<short>(iy,ix);
+				if ( z < 2047 ){
+					Vec3b& a = image.at<Vec3b>(iy,ix);
+					p = PointT(a[0],a[1],a[2]);
+					p.x = (ix - cx) * z / fx;
+					p.y = (iy - cy) * z / fy;
+					p.z = z;
+					cloud->push_back(p);
+				}
+			}
+		}
+
+
+		viewer.removeAllShapes();
+		std::vector<pcl::people::PersonCluster<PointT> > clusters;   // vector containing persons clusters
+		people_detector.setInputCloud(cloud);
+		//people_detector.setGround(ground_coeffs);                    // set floor coefficients
+		people_detector.compute(clusters);
+		//ground_coeffs = people_detector.getGround();
+
+		unsigned int k = 0;
+		for(std::vector<pcl::people::PersonCluster<PointT> >::iterator it = clusters.begin(); it != clusters.end(); ++it){
+			if(it->getPersonConfidence() > min_confidence)             // draw only people with confidence above a threshold
+			{
+				// draw theoretical person bounding box in the PCL viewer:
+				it->drawTBoundingBox(viewer, k);
+				k++;
+			}
+		}
+
+		viewer.updatePointCloud(cloud);
+		viewer.spinOnce();
+	}
+
+	
+
+
 	//people_detector.setHeightLimits(min_height, max_height);         // set person classifier*/
 
 
