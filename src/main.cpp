@@ -45,12 +45,12 @@ int main(){
 		0.0, 0.0, 1.0; 
 
 
-	pcl::people::PersonClassifier<pcl::RGB> person_classifier;
+	/*pcl::people::PersonClassifier<pcl::RGB> person_classifier;
 	person_classifier.loadSVMFromFile("const/trainedLinearSVMForPeopleDetectionWithHOG.yaml");
 	pcl::people::GroundBasedPeopleDetectionApp<PointT> people_detector;    // people detection object
 	people_detector.setVoxelSize(voxel_size);                        // set the voxel size
 	people_detector.setIntrinsics(rgb_intrinsics_matrix);            // set RGB camera intrinsic parameters
-	people_detector.setClassifier(person_classifier);
+	people_detector.setClassifier(person_classifier);*/
 
 
 	PointCloudT::Ptr cloud( new PointCloudT(  0,0,PointT(0,0,0)  ) );
@@ -66,8 +66,9 @@ int main(){
 	string buffer;
 	while ( cin.good() ){
 		cin >> buffer;
-		if ( (++i%10) != 0 )
-			continue;
+		//if ( (++i%10) != 0 )
+		//	continue;
+
 
 
 		TiObj _depth(true, "depth");
@@ -78,7 +79,6 @@ int main(){
 		image << _image;
 
 		cloud->clear();
-
 		PointT p;
 		for (int iy=0;iy<image.rows;iy++){
 			for (int ix=0;ix<image.cols;ix++){
@@ -94,9 +94,8 @@ int main(){
 			}
 		}
 
-
-		viewer.removeAllShapes();
-		std::vector<pcl::people::PersonCluster<PointT> > clusters;   // vector containing persons clusters
+		//viewer.removeAllShapes();
+		/*std::vector<pcl::people::PersonCluster<PointT> > clusters;   // vector containing persons clusters
 		people_detector.setInputCloud(cloud);
 		//people_detector.setGround(ground_coeffs);                    // set floor coefficients
 		people_detector.compute(clusters);
@@ -110,9 +109,11 @@ int main(){
 				it->drawTBoundingBox(viewer, k);
 				k++;
 			}
-		}
+		}*/
 
-		viewer.updatePointCloud(cloud);
+		viewer.removeAllPointClouds();
+		viewer.addPointCloud<PointT> (cloud, rgb, "cloud");
+		//viewer.updatePointCloud(cloud);
 		viewer.spinOnce();
 	}
 
